@@ -242,15 +242,40 @@ test('完全没有可用网卡时返回 null 而不是抛错', () => {
  * ================================================================== */
 
 test('resolveOverlayCidrs：显式配置优先，否则收窄到当前地址所属预设', () => {
-	const explicit = resolveOverlayCidrs({ overlayCidrs: ['10.99.0.0/16'] });
-	assert.deepEqual(explicit, ['10.99.0.0/16']);
+	// 用合成网卡，不依赖运行机器当下开着哪些隧道（否则隧道一关测试就飘）
+	const opts = { interfaces: listIpv4Interfaces(RAW_INTERFACES), peers: PEERS };
 
-	// 播发地址落在 OpenVPN 预设里 → 只放行 OpenVPN 的网段，而不是整片 RFC1918
-	const auto = resolveOverlayCidrs({ prefer: 'openvpn' });
+	// 1) 显式配置最优先
+	assert.deepEqual(resolveOverlayCidrs({ ...opts, overlayCidrs: ['10.99.0.0/16'] }), ['10.99.0.0/16']);
+
+	// 2) 未显式配置时，收窄到播发地址所属的预设网段
+	invalidateResolveCache();
+	const auto = resolveOverlayCidrs({ ...opts, prefer: 'openvpn' });
 	assert.deepEqual(auto, presetCidrs(['openvpn']));
 	for (const c of auto) {
 		assert.ok(!cidrContains(c, '192.168.3.29'), '不应顺带放行物理局域网地址');
 	}
+});
+
+test('resolveOverlayCidrs：只有物理网卡时必须为空（不得变成局域网免密）', () => {
+	// 回归测试：曾经在“隧道全关、播发的是物理网卡”时，这里会退回该网卡的
+	// 直连网段（如 192.168.3.0/24），等于把“虚拟网免密”变成“局域网免密”。
+	const physicalOnly = listIpv4Interfaces({
+		en0: [{ family: 'IPv4', address: '192.168.3.29', netmask: '255.255.255.0', internal: false }],
+	});
+	invalidateResolveCache();
+	assert.deepEqual(
+		resolveOverlayCidrs({ interfaces: physicalOnly, peers: new Map() }),
+		[],
+		'物理局域网的直连网段绝不能当虚拟网放行',
+	);
+
+	// 显式配置仍然尊重用户意愿（用户自己写下的网段不做二次判断）
+	invalidateResolveCache();
+	assert.deepEqual(
+		resolveOverlayCidrs({ interfaces: physicalOnly, peers: new Map(), overlayCidrs: ['192.168.3.0/24'] }),
+		['192.168.3.0/24'],
+	);
 });
 
 test('resolveOverlayCidrs：非预设的自定义隧道退回它自己的直连网段', () => {
