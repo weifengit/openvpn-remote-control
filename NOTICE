@@ -1,0 +1,31 @@
+dsh-remote-anynet
+=================
+
+本插件内联了开源项目 dsh-remote-mobile 的实现（MIT License），并做了以下改造：
+
+  * 移除其 Tailscale 专属逻辑：不再调用 `tailscale ip -4` 子进程，不再把
+    "异地可达" 硬编码为 CGNAT 100.64.0.0/10，不再按 en0/eth0 网卡名优先级
+    选择对外地址；
+  * 改为通用虚拟网探测（网卡名 + 网段 + ifconfig 对端提示三重打分），
+    支持 EasyTier / OpenVPN / ZeroTier / WireGuard / NetBird 与自定义网段；
+  * 界面中的 Overlay/Tailscale 相关文案改为通用的"虚拟网"表述。
+
+上游项目
+--------
+
+  名称:    dsh-remote-mobile
+  仓库:    https://github.com/IceApriler/dsh-remote-mobile
+  许可:    MIT License
+  版权:    Copyright (c) IceApriler
+  内联版本: 1.9.0
+
+内联范围：lib/auth/{crypto,token,gate,prefix}.js、lib/bridge/compat.js、
+lib/routes/{api,login-page}.js、lib/styles/style-snippets.js、lib/client.js，
+以及 lib/index.js 的骨架。上述文件均保留其原始 MIT 许可与版权归属，
+改造部分同样以 MIT License 发布（见 LICENSE）。
+
+被替换的模块：lib/auth/tailscale.js 已删除，其职责由 lib/nets.js 与
+lib/auth/overlay.js（适配层）取代。
+
+商标声明：EasyTier、OpenVPN、ZeroTier、WireGuard、NetBird、Tailscale
+分别为其各自所有者的商标。本项目与上述任何组织均无隶属或背书关系。

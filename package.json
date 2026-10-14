@@ -1,7 +1,7 @@
 {
   "name": "dsh-remote-anynet",
-  "version": "0.1.0",
-  "description": "DeepSeek Harness 远程接入地址修正插件：让 EasyTier / OpenVPN / ZeroTier / WireGuard 等任意虚拟网打通后的异地访问也能拿到正确的对外地址。与 dsh-remote-mobile 搭配使用，零改动上游。",
+  "version": "1.0.0",
+  "description": "DeepSeek Harness 远程与移动端安全网关：通用虚拟网探测（EasyTier / OpenVPN / ZeroTier / WireGuard / NetBird），扫码配对、RSA 加密传输、防暴力破解。内联 dsh-remote-mobile 的 MIT 实现并移除其 Tailscale 专属逻辑。",
   "keywords": [
     "dsh",
     "dsh-plugin",
@@ -13,12 +13,13 @@
     "zerotier",
     "wireguard",
     "remote-access",
-    "tailscale-alternative"
+    "mobile"
   ],
   "type": "module",
   "main": "lib/index.js",
   "exports": {
     ".": "./lib/index.js",
+    "./client": "./lib/client.js",
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./package.json": "./package.json"
   },
@@ -32,11 +33,21 @@
     "lib",
     "cordis.patch.yml",
     "README.md",
+    "NOTICE",
     "LICENSE"
   ],
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-connection",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-ui-sidebar"
+      ],
+      "platform": "web"
     }
   },
   "license": "MIT"

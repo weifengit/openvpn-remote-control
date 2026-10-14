@@ -2,17 +2,14 @@
 #
 # 只做一件事：把本插件的代码行挂进插件树。
 #
-# 为什么这里【不】覆盖 webserver 行：
-#   bundle 补丁里的 `- id: webserver` 会整行替换该行的 config（不是深合并），
-#   而"把 host 改成 0.0.0.0"是 profile 层（dsh-lan-access，或用户自己的
-#   ~/.dsh/profiles/web/cordis.patch.yml）的职责。在这里重复覆盖，一旦上游
-#   web-app bundle 的 webserver 行将来多出 compression 之类的键，就会被静默清掉。
-#   本插件改为在启动横幅里检测绑定状态，并在只监听回环时给出明确提示。
+# 行 id 用 remote-anynet，与上游插件包的 remote-mobile 行不冲突；
+# 两套同时启用会争抢同一个 remoteWebUiPairing 服务、并重复注册同一批路由，
+# 因此安装本插件时应同时卸载/禁用 dsh-remote-mobile（见 README「迁移」一节）。
 #
-# 挂载顺序：请让本插件的 bundle 排在 dsh-remote-mobile 之后
-# （package.json → dsh.profile.bundles 数组里放在它后面），
-# 这样插件的 apply() 更可能在上游之后执行，监听器重排一次即可稳定到首位。
-# 即便顺序相反也不会出错，详见 lib/rewrite.js 顶部的时序说明。
+# 这里【不】覆盖 webserver 行：把 host 改成 0.0.0.0 是 profile 层的职责
+# （dsh-lan-access 或用户自己的 cordis.patch.yml）。bundle 补丁里的
+# `- id: webserver` 会整行替换该行 config，重复覆盖有清掉其它键的风险。
+# 本插件改为在启动横幅里检测绑定状态并提示。
 
 - insert:
     - id: remote-anynet
