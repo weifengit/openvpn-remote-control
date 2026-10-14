@@ -8,8 +8,15 @@
  *
  * 用法：
  *   node scripts/migrate-from-remote-mobile.mjs                  # 预演，只打印将要做的改动
- *   node scripts/migrate-from-remote-mobile.mjs --apply           # 只写入配置（需你手动重启）
- *   node scripts/migrate-from-remote-mobile.mjs --apply --restart # 写入配置并自动重启 dsh web
+ *   node scripts/migrate-from-remote-mobile.mjs --apply            # 只写入配置（需你手动重启）
+ *   node scripts/migrate-from-remote-mobile.mjs --apply --restart   # 写入配置并自动重启
+ *   node scripts/migrate-from-remote-mobile.mjs --apply --restart --purge  # 并彻底删除上游包
+ *
+ * 【重要顺序】切勿在跑本脚本之前先执行 `dsh plugin --profile web remove dsh-remote-mobile`：
+ *   bundles 里留着一个已被物理删除的包，DSH 启动时会报
+ *   "<id> (<name>): failed to import"，甚至触发整树回滚。
+ *   正确顺序就是本脚本的顺序：先从 bundles/dependencies 摘掉（=功能上卸载），
+ *   再用 --purge 删包（=回收磁盘）。
  *
  * 为什么推荐 --restart：
  *   profile 的 package.json 一旦改动会触发 DSH 热重载，而插件源码并不热重载。
@@ -20,7 +27,7 @@
  * 幂等：重复执行不会有副作用；已迁移过会直接报告无需改动。
  */
 
-import { copyFileSync, existsSync, readFileSync, readlinkSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, readFileSync, readlinkSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import { execFileSync, spawn } from 'node:child_process';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -33,6 +40,7 @@ const LEGACY_NAME = 'dsh-remote-mobile';
 
 const apply = process.argv.includes('--apply');
 const restart = process.argv.includes('--restart');
+const purge = process.argv.includes('--purge');
 const profileDir = process.env.DSH_PROFILE_DIR || join(homedir(), '.dsh', 'profiles', 'web');
 const pkgPath = join(profileDir, 'package.json');
 
@@ -183,6 +191,36 @@ console.log('');
 console.log('数据目录已自动从 ~/.dsh/remote-mobile 继承到 ~/.dsh/remote-anynet，');
 console.log('已配对的手机会保留登录状态，无需重新扫码。');
 console.log('');
+/* ---------------- 彻底移除上游包（可选） ---------------- */
+// 必须放在下面 `if (!restart)` 的早退之前，否则只给 --purge 不给 --restart 时会被跳过
+
+if (purge) {
+	const legacyDir = join(profileDir, 'node_modules', LEGACY_NAME);
+	const nmRoot = join(profileDir, 'node_modules') + '/';
+	console.log(`正在移除 ${LEGACY_NAME} 的已安装文件…`);
+	try {
+		// 注意：走到这里时它已经从 dependencies/bundles 里摘掉了，所以
+		// `pnpm remove` 会认为"它不是依赖"而不做实际删除；直接清目录才有效。
+		// 删除前先断言路径确实在 profile 的 node_modules 之下，防止误删。
+		if (!legacyDir.startsWith(nmRoot)) {
+			throw new Error(`拒绝删除非预期路径：${legacyDir}`);
+		}
+		rmSync(legacyDir, { recursive: true, force: true });
+		if (existsSync(legacyDir)) {
+			console.error(`! 删除后仍存在，请手动处理：${legacyDir}`);
+		} else {
+			console.log(`✓ 已移除 ${legacyDir}`);
+		}
+	}
+	catch (error) {
+		// 包还在磁盘上不影响功能（bundles 里已经没它了），所以仅告警不中断
+		console.error(`! 移除失败（不影响功能，只是包还占着磁盘）：${error.message}`);
+		console.error(`  可手动执行：rm -rf ${legacyDir}`);
+	}
+	console.log('  注：lockfile 里可能仍留有一条记录，下次 pnpm install 会自行收敛。');
+	console.log('');
+}
+
 
 if (!restart) {
 	console.log('下一步：重启 DSH Web 让改动整体生效');
@@ -190,6 +228,7 @@ if (!restart) {
 	console.log('  2) 重新执行 dsh web');
 	process.exit(0);
 }
+
 
 /* ---------------- 自动重启 ---------------- */
 
