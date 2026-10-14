@@ -1,0 +1,43 @@
+{
+  "name": "dsh-remote-anynet",
+  "version": "0.1.0",
+  "description": "DeepSeek Harness 远程接入地址修正插件：让 EasyTier / OpenVPN / ZeroTier / WireGuard 等任意虚拟网打通后的异地访问也能拿到正确的对外地址。与 dsh-remote-mobile 搭配使用，零改动上游。",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek",
+    "deepseek-harness",
+    "cordis-plugin",
+    "easytier",
+    "openvpn",
+    "zerotier",
+    "wireguard",
+    "remote-access",
+    "tailscale-alternative"
+  ],
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "license": "MIT"
+}
