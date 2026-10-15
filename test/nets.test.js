@@ -241,20 +241,32 @@ test('完全没有可用网卡时返回 null 而不是抛错', () => {
  * 免密放行的网段收窄（相较上游 allowLan 的核心改进）
  * ================================================================== */
 
-test('resolveOverlayCidrs：显式配置优先，否则收窄到当前地址所属预设', () => {
+test('resolveOverlayCidrs：显式配置优先；多条隧道同时在线时一并放行', () => {
 	// 用合成网卡，不依赖运行机器当下开着哪些隧道（否则隧道一关测试就飘）
 	const opts = { interfaces: listIpv4Interfaces(RAW_INTERFACES), peers: PEERS };
 
 	// 1) 显式配置最优先
 	assert.deepEqual(resolveOverlayCidrs({ ...opts, overlayCidrs: ['10.99.0.0/16'] }), ['10.99.0.0/16']);
 
-	// 2) 未显式配置时，收窄到播发地址所属的预设网段
+	// 2) 未显式配置时，枚举所有可用隧道网卡（而不是只看“播发地址”所属的那一个）。
+	// EasyTier + OpenVPN 同时连：两条网段都应被放行，手机走哪条都能进。
 	invalidateResolveCache();
-	const auto = resolveOverlayCidrs({ ...opts, prefer: 'openvpn' });
-	assert.deepEqual(auto, presetCidrs(['openvpn']));
+	const auto = resolveOverlayCidrs({ ...opts, prefer: 'auto' });
+	const expEasy = presetCidrs(['easytier']);
+	const expOpen = presetCidrs(['openvpn']);
+	for (const c of expEasy) assert.ok(auto.includes(c), `未放行 EasyTier 段 ${c}`);
+	for (const c of expOpen) assert.ok(auto.includes(c), `未放行 OpenVPN 段 ${c}`);
 	for (const c of auto) {
-		assert.ok(!cidrContains(c, '192.168.3.29'), '不应顺带放行物理局域网地址');
+		assert.ok(!cidrContains(c, '192.168.3.29'), `不应顺带放行物理局域网 ${c}`);
 	}
+
+	// 3) prefer 锁定到 OpenVPN：不能放行 EasyTier 地址，但仍含 OpenVPN 网段。
+	invalidateResolveCache();
+	const openvpnOnly = resolveOverlayCidrs({ ...opts, prefer: 'openvpn' });
+	for (const c of openvpnOnly) {
+		assert.ok(!cidrContains(c, '10.126.126.11'), `prefer=openvpn 却放行了 EasyTier 地址 ${c}`);
+	}
+	for (const c of expOpen) assert.ok(openvpnOnly.includes(c), `未放行 OpenVPN 段 ${c}`);
 });
 
 test('resolveOverlayCidrs：只有物理网卡时必须为空（不得变成局域网免密）', () => {

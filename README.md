@@ -221,3 +221,15 @@ curl -s http://127.0.0.1:3080/api/remote-mobile/status | python3 -m json.tool | 
 MIT。认证网关部分内联自 dsh-remote-mobile（Copyright (c) IceApriler，
 MIT License），详见 [NOTICE](NOTICE)。EasyTier、OpenVPN、ZeroTier、WireGuard、
 NetBird、Tailscale 分别为其各自所有者的商标，本项目与上述组织无隶属关系。
+
+## 移动端体验说明
+
+- **允许双指缩放**：客户端不再把 viewport meta 写死成
+  `maximum-scale=1.0, user-scalable=no`（手机上既看不清又放不大），
+  现在只设 `width=device-width, initial-scale=1.0, viewport-fit=cover`。
+- **工作台（第三方面板类插件）的窄屏适配由插件自己负责**：本插件注入的
+  `preset-sidebar / preset-settings / preset-main` 只适配宿主自己的 class
+  （`_frame` / `_sidebarCol` / `_centerCol` / markdown…）。窄屏下工作台这类
+  自绘外壳需要它自己按 `@media (max-width: 900px)` 适配（tokensave 工作台已按此
+  断点把三栏改成单栏 + 覆盖式抽屉）。
+
