@@ -59,6 +59,12 @@ OpenVPN 的机器，上游返回的是：
   一次放开整片 RFC1918
 - 地址选择页：列出全部候选与判定依据，一键固定
 
+**浏览器兼容层（本插件改造）**
+- 注入 ES2024 平台 API shim（`AbortSignal.any` / `Promise.withResolvers` / `AbortSignal.timeout` / `throwIfAborted`）：
+  DSH 客户端 connection 依赖它们，旧手机内核（Chromium < 116/119）缺失时会一直卡在「重新连接中」
+- 非安全上下文（HTTP + 外部 IP）下的 `crypto.randomUUID` / `navigator.clipboard` 降级
+- shim 均先探测原生实现，新内核上完全空转；脚本注入在 `<head>` 最前，先于任何模块脚本执行
+
 ## 3. 安装
 
 ```bash
@@ -202,6 +208,7 @@ curl -s http://127.0.0.1:3080/api/remote-mobile/status | python3 -m json.tool | 
 | 播发地址是 `192.168.x.x` | 隧道没起来。打开 `/remote-anynet` 看候选；或直接手动固定一个地址 |
 | 换了地址要重新扫码 | 正常：Cookie 按 origin 隔离。建议固定一个地址长期使用 |
 | 配对后手机仍被拦 | 确认访问的是"对外播发"那个地址，而不是二维码里可能残留的旧地址 |
+| 手机端一直显示「重新连接中」 | 手机内核太旧（如 Chromium 115）缺少 `AbortSignal.any` / `Promise.withResolvers`。本插件会注入 shim（`<script id="dsh-es2024-polyfill">`）；若页面里没有这个标签，说明服务没重启到新版插件 |
 
 ## 9. 相对上游去掉了什么
 
@@ -232,4 +239,8 @@ NetBird、Tailscale 分别为其各自所有者的商标，本项目与上述组
   （`_frame` / `_sidebarCol` / `_centerCol` / markdown…）。窄屏下工作台这类
   自绘外壳需要它自己按 `@media (max-width: 900px)` 适配（tokensave 工作台已按此
   断点把三栏改成单栏 + 覆盖式抽屉）。
+- **旧内核兜底**：注入 ES2024 shim（`AbortSignal.any` / `Promise.withResolvers` /
+  `AbortSignal.timeout` / `throwIfAborted`）。缺了它们时 DSH 客户端 connection 的
+  generation 第一步就抛 TypeError，旧内核手机（如 Chromium 115 的系统 WebView）
+  会永远停在「重新连接中」而不是报错。新内核上这些 shim 完全空转。
 
