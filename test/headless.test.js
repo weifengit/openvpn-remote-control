@@ -176,7 +176,23 @@ test('异地访问：未配对被拦，/auth 公开，配对后放行', async (t
 
 		const root = await fetch(`${remoteBase}/`, { redirect: 'manual' });
 		assert.equal(root.status, 302);
-		assert.equal(root.headers.get('location'), '/auth');
+		// 根路径的 redirect 就是 '/'，登录后回站点根，行为与从前一致
+		assert.equal(root.headers.get('location'), '/auth?redirect=%2F');
+
+		// 未配对访问子路径时必须带上原始路径，否则配对成功后会被丢到站点根
+		// （用户从 /api/intel/site/console/ 进来却落到 DSH 首页，看起来像没登录）。
+		// 浏览器地址栏导航会带 Accept: text/html —— gate 只对主文档请求做 302，
+		// 不带这个头的子资源/API 请求保持 401，所以这里要按真实导航模拟。
+		const consoleReq = await fetch(`${remoteBase}/api/intel/site/console/`, {
+			redirect: 'manual',
+			headers: { accept: 'text/html' },
+		});
+		assert.equal(consoleReq.status, 302);
+		assert.equal(
+			consoleReq.headers.get('location'),
+			'/auth?redirect=%2Fapi%2Fintel%2Fsite%2Fconsole%2F',
+			'子路径被拦时 redirect 应携带原始路径',
+		);
 
 		// 2) /auth 公开可访问
 		const authPage = await fetch(`${remoteBase}/auth`, { redirect: 'manual' });
