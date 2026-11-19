@@ -59,6 +59,15 @@ OpenVPN 的机器，上游返回的是：
   一次放开整片 RFC1918
 - 地址选择页：列出全部候选与判定依据，一键固定
 
+**对外可达监听（本插件改造）**
+- 新版 `dsh-host-webserver` 拒绝绑定 `0.0.0.0`（会暴露 RCE），profile 只能绑回环；
+  这时手机走局域网/虚拟网本来就进不来。插件改为在**本机每个非回环 IPv4** 上追加监听
+  （局域网网卡 + `utun*`/`tun*` 隧道网卡），连接建立后把 socket **直接交给宿主的 http.Server**
+- 不走 TCP 反向代理：反代会把来源地址变成 `127.0.0.1`，门禁会当成本机请求无条件放行，
+  等于把鉴权拆掉。直接交接 socket 时 `remoteAddress` 保持真实来源，门禁与审计照常生效
+- 隧道随时上下线（EasyTier 重连、OpenVPN 掉线），监听每 10 秒重扫一次，跟着网卡变化增减
+- 宿主自己已绑通配地址时不再重复监听（那些接口本就可达）
+
 **浏览器兼容层（本插件改造）**
 - 注入 ES2024 平台 API shim（`AbortSignal.any` / `Promise.withResolvers` / `AbortSignal.timeout` / `throwIfAborted`）：
   DSH 客户端 connection 依赖它们，旧手机内核（Chromium < 116/119）缺失时会一直卡在「重新连接中」
@@ -158,6 +167,7 @@ ln -s /Users/sonoma/code/openvpn-remote-control node_modules/dsh-remote-anynet
   "pinnedAddress": "",          // 最高优先级，留空=自动；只接受合法 IPv4
   "customCidrs": [],            // 参与打分，也可配合 prefer=custom
   "overlayCidrs": []            // 免密放行网段；留空=自动收窄到当前地址所属虚拟网
+  "lanListen": true              // 在局域网/虚拟网卡上追加监听（关掉就只有本机能连）
 }
 ```
 
@@ -204,7 +214,8 @@ curl -s http://127.0.0.1:3080/api/remote-mobile/status | python3 -m json.tool | 
 | 现象 | 处理 |
 | --- | --- |
 | 设置里出现「检测到其他远程接入插件」 | 说明 `dsh-remote-mobile` 还开着。按第 3 节把它从 `bundles` 与 `dependencies` 移除后重启 |
-| 横幅提示"当前仅监听 127.0.0.1" | `webserver.host` 不是 `0.0.0.0`，异地连不进来。装 `dsh-lan-access` 或自行配置 |
+| 横幅提示"当前仅监听 127.0.0.1" | 正常且无需处理：新版 webserver 禁止绑 `0.0.0.0`，对外可达由本插件的追加监听提供。打开 `/remote-anynet` 看「对外可达监听」里列出的地址 |
+| 手机连不上、但本机 `127.0.0.1` 正常 | 看 `/remote-anynet` 的「对外可达监听」：列表为空说明开关关了或网卡不在；有「绑定失败」说明端口被其他进程占着 |
 | 播发地址是 `192.168.x.x` | 隧道没起来。打开 `/remote-anynet` 看候选；或直接手动固定一个地址 |
 | 换了地址要重新扫码 | 正常：Cookie 按 origin 隔离。建议固定一个地址长期使用 |
 | 配对后手机仍被拦 | 确认访问的是"对外播发"那个地址，而不是二维码里可能残留的旧地址 |

@@ -1,6 +1,6 @@
 {
   "name": "dsh-remote-anynet",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "DeepSeek Harness 远程与移动端安全网关：通用虚拟网探测（EasyTier / OpenVPN / ZeroTier / WireGuard / NetBird），扫码配对、RSA 加密传输、防暴力破解。内联 dsh-remote-mobile 的 MIT 实现并移除其 Tailscale 专属逻辑。",
   "keywords": [
     "dsh",
