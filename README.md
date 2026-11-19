@@ -216,10 +216,11 @@ curl -s http://127.0.0.1:3080/api/remote-mobile/status | python3 -m json.tool | 
 | 设置里出现「检测到其他远程接入插件」 | 说明 `dsh-remote-mobile` 还开着。按第 3 节把它从 `bundles` 与 `dependencies` 移除后重启 |
 | 横幅提示"当前仅监听 127.0.0.1" | 正常且无需处理：新版 webserver 禁止绑 `0.0.0.0`，对外可达由本插件的追加监听提供。打开 `/remote-anynet` 看「对外可达监听」里列出的地址 |
 | 手机连不上、但本机 `127.0.0.1` 正常 | 看 `/remote-anynet` 的「对外可达监听」：列表为空说明开关关了或网卡不在；有「绑定失败」说明端口被其他进程占着 |
+| 页面能打开但一直「重新连接中」 | 实时通道走的是 http.Server 的 `upgrade` 事件，与普通 HTTP 是两条路。底座对 `Host` 的栅栏只认回环/绑定地址，手机用 `192.168.x.x` 握手会被判 403。本插件已单独接管 `upgrade` 与 `connection.admit/admitConnection`；若仍 403，说明服务没重启到新版 | 
 | 播发地址是 `192.168.x.x` | 隧道没起来。打开 `/remote-anynet` 看候选；或直接手动固定一个地址 |
 | 换了地址要重新扫码 | 正常：Cookie 按 origin 隔离。建议固定一个地址长期使用 |
 | 配对后手机仍被拦 | 确认访问的是"对外播发"那个地址，而不是二维码里可能残留的旧地址 |
-| 手机端一直显示「重新连接中」 | 手机内核太旧（如 Chromium 115）缺少 `AbortSignal.any` / `Promise.withResolvers`。本插件会注入 shim（`<script id="dsh-es2024-polyfill">`）；若页面里没有这个标签，说明服务没重启到新版插件 |
+| 手机端一直显示「重新连接中」 | 分两层看：①控制台抓 `/api/remote.mux` 的握手状态码，**403 就是它**；②页面里没有 `<script id="dsh-es2024-polyfill">` 则是内核太旧缺 `AbortSignal.any` / `Promise.withResolvers`。两者都看过就是插件没重启到新版 |
 
 ## 9. 相对上游去掉了什么
 
