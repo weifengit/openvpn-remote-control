@@ -24,13 +24,14 @@
     "./package.json": "./package.json"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=18.0.0",
+    "dsh": "^0.2.2-rc.2"
   },
   "scripts": {
     "test": "node --test test/*.test.js"
   },
   "files": [
-    "lib",
+    "lib/",
     "cordis.patch.yml",
     "README.md",
     "NOTICE",
@@ -50,5 +51,9 @@
       "platform": "web"
     }
   },
-  "license": "MIT"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/weifengit/openvpn-remote-control.git"
+  }
 }
